@@ -1,8 +1,9 @@
 pragma solidity >= 0.7.0 < 0.9.0;
-
 //"SPDX-License-Identifier: UNLICENSED
 
-contract ERC20Contract {
+import './interface/IERC20Contract.sol';
+
+contract ERC20Contract is IERC20Contract {
     string private _name;
     string private _symbol;
     address private owner;
@@ -11,9 +12,6 @@ contract ERC20Contract {
     uint256 private amountPerEth;   //1 eth = number of tokens
     mapping(address => uint256) private _balance;    //Map to keep track of balances
     mapping(address => bool) private _receivedAirdrop;  //Map to keep track of accounts redeemed balance
-
-    event Transfer(address indexed _from, address indexed _to, uint256 _value); //Broadcast transactions
-
 
     constructor() payable checkFunds {
         owner = msg.sender;
@@ -35,9 +33,10 @@ contract ERC20Contract {
         _;
     }
 
-    modifier transferChecks (address _from, address _to){
+    modifier transferChecks (address _from, address _to, uint256 amount){
         require(_to != address(0x0), "Transferring token to invalid address!");
         require(_from != _to, "You cannot send tokens to yourself");
+        require(_balance[_from] >= amount , "Amount exceeds balance in account!");
         _;
     }
 
@@ -46,23 +45,23 @@ contract ERC20Contract {
         _;
     }
 
-    function name() public view returns(string memory) {
+    function name() public override view returns(string memory) {
         return _name;
     }
 
-    function symbol() public view returns(string memory) {
+    function symbol() public override view returns(string memory) {
         return _symbol;
     }
 
-    function totalSupply() public view returns(uint256) {
+    function totalSupply() public override view returns(uint256) {
         return _tokenSupply;
     }
 
-    function getBalance() public view returns(uint) {
+    function getBalance() public override view returns(uint) {
         return _balance[msg.sender];
     }
     
-    function balanceOf(address account) public view returns(uint) {
+    function balanceOf(address account) public override view returns(uint) {
         return _balance[account];
     }
 
@@ -87,9 +86,8 @@ contract ERC20Contract {
     }
 
     //transfer function to handle transfer of token
-    function transfer(address _to, uint256 _value) public transferChecks(msg.sender,_to) returns (bool){
+    function transfer(address _to, uint256 _value) public override transferChecks(msg.sender,_to,_value) returns (bool){
         address _owner = msg.sender;
-        require(_balance[_owner] >= _value, "Amount exceeds balance in account!");
         _balance[_owner] -= _value;
         _balance[_to] += _value;
         emit Transfer(_owner, _to, _value);
@@ -97,8 +95,7 @@ contract ERC20Contract {
     }
 
     //Transactions handled by contract using this function
-    function transferFrom(address from, address to, uint256 amount) transferChecks(from, to) private returns(bool){
-        require(_balance[from] >= amount, "Amount exceeds balance in account!");
+    function transferFrom(address from, address to, uint256 amount) private transferChecks(from, to,amount) returns(bool){
         _balance[from] -= amount;
         _balance[to] += amount;
         emit Transfer(address(this), msg.sender, amount);
@@ -124,7 +121,7 @@ contract ERC20Contract {
         uint256 tokenToEth = amount / amountPerEth * 1 ether;
         require(contractBalance >= tokenToEth, "Contract does not have enough balance for swap!"); //Checks if balance is enough
 
-        (bool success) = transferFrom(msg.sender, address(this), amount);   //Debit the tokens 
+        (bool success) = transfer(address(this), amount);   //Debit the tokens 
         require(success, "Transaction cannot be completed try again later!");
 
         address payable _to = payable(msg.sender);
