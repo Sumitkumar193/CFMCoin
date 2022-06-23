@@ -11,6 +11,7 @@ contract ERC20Contract {
     uint256 private amountPerEth;   //1 eth = number of tokens
     mapping(address => uint256) private _balance;    //Map to keep track of balances
     mapping(address => bool) private _receivedAirdrop;  //Map to keep track of accounts redeemed balance
+
     event Transfer(address indexed _from, address indexed _to, uint256 _value); //Broadcast transactions
 
 
@@ -31,6 +32,12 @@ contract ERC20Contract {
 
     modifier onlyOwner {
         require(owner == msg.sender, "You are not authorized!");
+        _;
+    }
+
+    modifier transferChecks (address _from, address _to){
+        require(_to != address(0x0), "Transferring token to invalid address!");
+        require(_from != _to, "You cannot send tokens to yourself");
         _;
     }
 
@@ -59,33 +66,42 @@ contract ERC20Contract {
         return _balance[account];
     }
 
-    //First 100 unique users can receive the airdrop of CFM token
+    //Airdrop tokens for users holding CFM Tokens: "maximum of 20 Tokens can be received"
     function airdrop() public hasReceivedAirdrop {
-        require(_balance[msg.sender] == 0 , "Airdrop tokens to only new addresses");
-        require(airdropSupply >= 0, "Airdrop is over!");
-        _receivedAirdrop[msg.sender] = true;
-        airdropSupply -= 10;
-        _balance[msg.sender] += 10;
-        emit Transfer(address(0x0), msg.sender, 10);   
+        require(airdropSupply >= 0, "Airdrop is over!");    //Check if airdrop is available for withdraw
+        require(_balance[msg.sender] >= 50 , "Airdrop only available for holder's having 50+ CFM Token");
+        //Calculate airdrop Tokens
+        uint256 airdropAmount = _balance[msg.sender] / 10;
+
+        if(airdropAmount < 20){
+            _receivedAirdrop[msg.sender] = true;    //Set user has redeemed airdrop
+            airdropSupply -= airdropAmount;
+            _balance[msg.sender] += airdropAmount;
+        }else{
+            _receivedAirdrop[msg.sender] = true;    //Set user has redeemed airdrop
+            airdropAmount = 20; //Set to maximum limit of airdrop
+            airdropSupply -= 20;
+            _balance[msg.sender] += 20;
+        }
+        emit Transfer(address(0x0), msg.sender, airdropAmount);   
     }
 
-    //transfer function to handle transactions on blockchain
-    function transfer(address _to, uint256 _value) public returns (bool){
+    //transfer function to handle transfer of token
+    function transfer(address _to, uint256 _value) public transferChecks(msg.sender,_to) returns (bool){
         address _owner = msg.sender;
-        require(_to != _owner, "Transferring token to your own account!");
-        require(_to != address(0x0), "Transferring token to invalid address!");
         require(_balance[_owner] >= _value, "Amount exceeds balance in account!");
-        _balance[address(this)] -= _value;
+        _balance[_owner] -= _value;
         _balance[_to] += _value;
         emit Transfer(_owner, _to, _value);
         return true;
     }
 
-    //Receive tokens to contract while selling
-    function transferFrom(address _from , address _to, uint256 _value) private returns (bool) {
-        _balance[_from] -= _value;
-        _balance[_to] += _value;
-        emit Transfer(_from, _to, _value);
+    //Transactions handled by contract using this function
+    function transferFrom(address from, address to, uint256 amount) transferChecks(from, to) private returns(bool){
+        require(_balance[from] >= amount, "Amount exceeds balance in account!");
+        _balance[from] -= amount;
+        _balance[to] += amount;
+        emit Transfer(address(this), msg.sender, amount);
         return true;
     }
 
@@ -95,9 +111,8 @@ contract ERC20Contract {
         require(msg.value >= minVal, "Minimum buy value requires more than 1 ethers" );
         uint256 amountToPurchase = msg.value * amountPerEth / 1 ether;  // convert wei (msg.sender) into 1 ether
         require(_balance[address(this)] >= amountToPurchase, "Contract does not have enough tokens to swap.");
-        _balance[address(this)] -= amountToPurchase;
-        _balance[msg.sender] += amountToPurchase;
-        emit Transfer(address(this), msg.sender, amountToPurchase);
+        (bool sent) = transferFrom(address(this), msg.sender, amountToPurchase);
+        require(sent, "Transaction cannot be completed! Try again.");
         return true;
     }
 
