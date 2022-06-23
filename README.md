@@ -17,8 +17,10 @@ Contract Functions:
   GetBalance()- Fetches token balance on account.
 	
   BalanceOf()- fetches token balance of a address.
+  
+  transfer()- Transfers CFM token to other addresses.
 	
-  AirDrop()- Receive 10 CFM tokens (once to a address).
+  AirDrop()- Receive upto 20 CFM tokens to users holding more than 50 tokens.
 	
   BuyTokens()- User swap eth for CFM tokens (1 eth to 100 CFM tokens).
 	
