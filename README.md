@@ -46,6 +46,6 @@ Contract Functions:
  
       1. start truffle console -> truffle console
 			
-      2. load abis into the variable -> let a = await ERC20Contract.deployed()
+      		-> let a = await ERC20Contract.deployed()
 			
       3. Now application is ready for using the functions mentioned above.
