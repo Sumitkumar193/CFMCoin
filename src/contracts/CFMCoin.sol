@@ -15,7 +15,7 @@ contract ERC20Contract is IERC20Contract {
 
     constructor() payable checkFunds {
         owner = msg.sender;
-        _name = "CoinForMobiloitte";
+        _name = "CoinForMobilio";
         _symbol = "CFM";
         _tokenSupply = 10000;
         airdropSupply = 1000;
